@@ -2,7 +2,7 @@ name: Build Ximalaya Extension
 
 on:
   push:
-    branches: [ "master" ] # 监听你的主分支 master
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
@@ -21,33 +21,28 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        # 使用 npm ci 严格依照 package-lock.json 安装
         run: npm ci
 
-      - name: Build JS/CSS
-        # 执行 vite build，默认输出到 dist 目录
-        run: npm run build
+      - name: Build Project
+        # 绕过 package.json 的 build 脚本，直接用 npx 运行 vite 构建
+        # 这样就不会触发 windows 的 xcopy 和 if exist 报错
+        run: npx vite build
 
       - name: Merge Extension Assets
-        # 关键：将 ext 目录下的 manifest.json 等文件合并到构建产物中
+        # 使用 Linux 原生命令合并 ext 目录下的资源到 dist
         run: |
-          if [ -d "ext" ]; then
-            cp -r ext/* dist/
-            echo "Successfully merged assets from /ext to /dist"
-          else
-            echo "Error: /ext directory not found!"
-            exit 1
-          fi
+          mkdir -p dist/icons
+          cp -r ext/icons/* dist/icons/ || true
+          cp ext/manifest.json dist/
+          cp ext/background.js dist/
 
       - name: Zip Extension
-        # 压缩 dist 目录，排除不必要的文件
         run: |
           cd dist
           zip -r ../ximalaya-extension.zip .
           cd ..
 
       - name: Upload Artifact
-        # 将打包好的 zip 文件上传，保留 7 天
         uses: actions/upload-artifact@v4
         with:
           name: ximalaya-extension-build
